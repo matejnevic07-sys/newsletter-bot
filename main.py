@@ -11,7 +11,10 @@ load_dotenv(Path(__file__).parent / ".env")
 
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 TELEGRAM_TOKEN = os.environ["TELEGRAM_TOKEN"]
-TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
+TELEGRAM_CHAT_IDS = [
+    os.environ["TELEGRAM_CHAT_ID"],
+    "289477039",  # Stojan
+]
 
 SUBREDDITS = {
     "🔬 Quantum Computing": ["QuantumComputing", "quantum"],
@@ -88,12 +91,13 @@ Piši ISKLJUČIVO na srpskom jeziku."""
 
 def send_telegram(text: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    httpx.post(url, json={
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": text,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True,
-    }, timeout=15)
+    for chat_id in TELEGRAM_CHAT_IDS:
+        httpx.post(url, json={
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
+        }, timeout=15)
 
 
 def build_and_send():
