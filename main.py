@@ -1,4 +1,6 @@
 import os
+import time
+import xml.etree.ElementTree as ET
 from datetime import date
 from pathlib import Path
 from dotenv import load_dotenv
@@ -17,28 +19,40 @@ SUBREDDITS = {
     "🤖 AI": ["artificial", "MachineLearning", "AINews"],
 }
 
-HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "application/rss+xml, application/xml, text/xml, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+}
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 
 def fetch_top_posts(subreddit: str, limit: int = 8) -> list[dict]:
-    url = f"https://www.reddit.com/r/{subreddit}/top.json?t=day&limit={limit}"
+    url = f"https://www.reddit.com/r/{subreddit}/top.rss?t=day&limit={limit}"
     try:
-        r = httpx.get(url, headers=HEADERS, timeout=15)
+        time.sleep(1)
+        r = httpx.get(url, headers=HEADERS, timeout=20, follow_redirects=True)
         r.raise_for_status()
-        posts = r.json()["data"]["children"]
-        return [
-            {
-                "title": p["data"]["title"],
-                "score": p["data"]["score"],
-                "comments": p["data"]["num_comments"],
-                "url": f"https://reddit.com{p['data']['permalink']}",
-                "subreddit": subreddit,
-            }
-            for p in posts
-            if not p["data"].get("stickied")
-        ]
+
+        root = ET.fromstring(r.content)
+        ns = {"atom": "http://www.w3.org/2005/Atom"}
+        entries = root.findall("atom:entry", ns)
+
+        posts = []
+        for entry in entries[:limit]:
+            title_el = entry.find("atom:title", ns)
+            link_el = entry.find("atom:link", ns)
+            title = title_el.text if title_el is not None else "No title"
+            url = link_el.get("href", "") if link_el is not None else ""
+            if title and url:
+                posts.append({
+                    "title": title,
+                    "url": url,
+                    "subreddit": subreddit,
+                })
+        print(f"r/{subreddit}: {len(posts)} posts")
+        return posts
     except Exception as e:
         print(f"Error fetching r/{subreddit}: {e}")
         return []
@@ -46,29 +60,26 @@ def fetch_top_posts(subreddit: str, limit: int = 8) -> list[dict]:
 
 def summarize_posts(category: str, posts: list[dict]) -> str:
     if not posts:
-        return "No posts found today."
+        return "Danas nema novih postova."
 
-    posts_text = "\n".join([
-        f"- {p['title']} (👍 {p['score']} upvotes, 💬 {p['comments']} comments)"
-        for p in posts
-    ])
+    posts_text = "\n".join([f"- {p['title']}" for p in posts])
 
     response = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=600,
         messages=[{
             "role": "user",
-            "content": f"""You are writing a morning newsletter section about: {category}
+            "content": f"""Pišeš jutarnji newsletter o temi: {category}
 
-Here are today's top Reddit posts:
+Ovo su današnji top Reddit postovi:
 {posts_text}
 
-Izaberi 3 najzanimljivija/najvažnija posta i napiši summary od 2 rečenice za svaki.
-Format tačno ovako za svaki post:
+Izaberi 3 najzanimljivija/najvažnija i napiši summary od 2 rečenice za svaki.
+Format tačno ovako:
 📌 [originalni naslov posta]
-[Tvoj summary od 2 rečenice koji objašnjava šta je to i zašto je važno]
+[Summary od 2 rečenice na srpskom — šta je to i zašto je važno]
 
-Preskoči memove, šale i postove lošeg kvaliteta. Fokusiraj se na stvarne vesti, istraživanja i razvoj.
+Preskoči memove i šale. Fokusiraj se na vesti, istraživanja i razvoj.
 Piši ISKLJUČIVO na srpskom jeziku."""
         }]
     )
@@ -87,7 +98,6 @@ def send_telegram(text: str):
 
 def build_and_send():
     today = date.today().strftime("%B %d, %Y")
-
     header = f"<b>🌅 Jutarnji pregled — {today}</b>\n<i>Tvoj dnevni tech digest</i>"
     send_telegram(header)
 
@@ -96,9 +106,7 @@ def build_and_send():
         for sub in subreddits:
             all_posts.extend(fetch_top_posts(sub))
 
-        all_posts.sort(key=lambda x: x["score"], reverse=True)
         top_posts = all_posts[:5]
-
         summary = summarize_posts(category, top_posts)
 
         links = "\n".join([
