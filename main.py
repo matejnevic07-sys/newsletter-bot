@@ -17,7 +17,7 @@ SUBREDDITS = {
     "🤖 AI": ["artificial", "MachineLearning", "AINews"],
 }
 
-HEADERS = {"User-Agent": "morning-intel-bot/1.0 personal-newsletter"}
+HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
