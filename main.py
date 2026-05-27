@@ -31,7 +31,7 @@ HEADERS = {
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 
-def fetch_top_posts(subreddit: str, limit: int = 8) -> list[dict]:
+def fetch_top_posts(subreddit: str, limit: int = 10) -> list[dict]:
     url = f"https://www.reddit.com/r/{subreddit}/top.rss?t=day&limit={limit}"
     try:
         time.sleep(1)
@@ -61,36 +61,80 @@ def fetch_top_posts(subreddit: str, limit: int = 8) -> list[dict]:
         return []
 
 
-def summarize_posts(category: str, posts: list[dict]) -> str:
+def analyze_category(category: str, posts: list[dict]) -> tuple[str, list[dict]]:
     if not posts:
-        return "Danas nema novih postova."
+        return "Danas nema novih postova.", []
 
-    posts_text = "\n".join([f"- {p['title']}" for p in posts])
+    posts_numbered = "\n".join([
+        f"{i+1}. {p['title']}"
+        for i, p in enumerate(posts)
+    ])
 
-    response = client.messages.create(
+    # Korak 1: Claude interno analizira i bira top 3
+    analysis = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=600,
+        max_tokens=200,
         messages=[{
             "role": "user",
-            "content": f"""Pišeš jutarnji newsletter o temi: {category}
+            "content": f"""Oblast: {category}
 
-Ovo su današnji top Reddit postovi:
-{posts_text}
+Postovi od danas:
+{posts_numbered}
 
-Izaberi 3 najzanimljivija/najvažnija posta i analiziraj svaki kroz "So what?" filter investitora.
+Koji su brojevi 3 najvažnija posta za investitore i poslovne ljude?
+Razmisli: koja vest ima najveći uticaj na tržište? Postoje li veze između postova?
+Odgovori SAMO sa 3 broja, npr: 2, 7, 4"""
+        }]
+    )
 
-Format tačno ovako za svaki post:
-📌 [originalni naslov posta]
-[1 rečenica: šta se desilo]
-💡 So what? [1-2 rečenice: šta ovo znači za tržište, industriju ili investitore]
-🎯 Preporuka: [konkretan zaključak — koji sektor/kompanija profitira, šta pratiti, šta izbegavati, ili zašto je prerano za akciju]
+    # Izvuci odabrane brojeve
+    selected_indices = []
+    for part in analysis.content[0].text.replace(" ", "").split(","):
+        try:
+            idx = int(''.join(filter(str.isdigit, part))) - 1
+            if 0 <= idx < len(posts):
+                selected_indices.append(idx)
+        except:
+            pass
 
-Preskoči memove i šale. Fokusiraj se na vesti sa jasnim poslovnim implikacijama.
-Budi konkretan — imenuj sektore, kompanije i trendove kad god možeš.
+    if not selected_indices:
+        selected_indices = [0, 1, 2]
+
+    selected_posts = [posts[i] for i in selected_indices[:3]]
+
+    # Korak 2: Duboka analiza odabranih
+    selected_text = "\n".join([f"- {p['title']}" for p in selected_posts])
+    all_text = "\n".join([f"- {p['title']}" for p in posts])
+
+    insight = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=800,
+        messages=[{
+            "role": "user",
+            "content": f"""Ti si iskusan investicioni analitičar. Čitaš Reddit da uhvatiš tržišne trendove pre ostalih.
+
+Sve vesti danas iz oblasti {category}:
+{all_text}
+
+Najvažnije vesti koje si odabrao:
+{selected_text}
+
+Napiši 3 konkretna investiciona zaključka. Za svaki:
+- Šta se desilo (1 rečenica)
+- Zašto je to važno za tržište i investitore (1-2 rečenice)
+- Konkretna preporuka: koji sektor/kompanija profitira ili gubi, šta pratiti
+
+Format:
+📌 [naslov vesti]
+[tvoja analiza i preporuka — 3-4 rečenice ukupno, direktno i konkretno]
+
+Bez uvoda. Bez "So what?" labela. Piši kao analitičar koji zna šta radi.
+Imenuj konkretne kompanije, ETF-ove ili sektore kad god možeš.
 Piši ISKLJUČIVO na srpskom jeziku."""
         }]
     )
-    return response.content[0].text
+
+    return insight.content[0].text, selected_posts
 
 
 def send_telegram(text: str):
@@ -114,15 +158,14 @@ def build_and_send():
         for sub in subreddits:
             all_posts.extend(fetch_top_posts(sub))
 
-        top_posts = all_posts[:5]
-        summary = summarize_posts(category, top_posts)
+        analysis, selected_posts = analyze_category(category, all_posts)
 
         links = "\n".join([
             f'🔗 <a href="{p["url"]}">{p["title"][:70]}</a>'
-            for p in top_posts[:3]
+            for p in selected_posts
         ])
 
-        section = f"\n<b>{category}</b>\n{'─' * 24}\n{summary}\n\n{links}"
+        section = f"\n<b>{category}</b>\n{'─' * 24}\n{analysis}\n\n{links}"
         send_telegram(section)
 
     send_telegram("─" * 24 + "\n<i>Vidimo se sutra! 👋</i>")
