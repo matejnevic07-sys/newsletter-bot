@@ -139,6 +139,8 @@ Piši ISKLJUČIVO na srpskom jeziku."""
 
 def send_telegram(text: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    if len(text) > 4000:
+        text = text[:4000] + "..."
     for chat_id in TELEGRAM_CHAT_IDS:
         httpx.post(url, json={
             "chat_id": chat_id,
@@ -174,4 +176,9 @@ def build_and_send():
 
 if __name__ == "__main__":
     print("Building morning newsletter...")
-    build_and_send()
+    try:
+        build_and_send()
+    except Exception as e:
+        error_msg = f"❌ <b>Newsletter nije poslat!</b>\n<code>{str(e)[:300]}</code>"
+        send_telegram(error_msg)
+        raise
