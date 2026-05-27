@@ -77,12 +77,16 @@ def summarize_posts(category: str, posts: list[dict]) -> str:
 Ovo su današnji top Reddit postovi:
 {posts_text}
 
-Izaberi 3 najzanimljivija/najvažnija i napiši summary od 2 rečenice za svaki.
-Format tačno ovako:
-📌 [originalni naslov posta]
-[Summary od 2 rečenice na srpskom — šta je to i zašto je važno]
+Izaberi 3 najzanimljivija/najvažnija posta i analiziraj svaki kroz "So what?" filter investitora.
 
-Preskoči memove i šale. Fokusiraj se na vesti, istraživanja i razvoj.
+Format tačno ovako za svaki post:
+📌 [originalni naslov posta]
+[1 rečenica: šta se desilo]
+💡 So what? [1-2 rečenice: šta ovo znači za tržište, industriju ili investitore]
+🎯 Preporuka: [konkretan zaključak — koji sektor/kompanija profitira, šta pratiti, šta izbegavati, ili zašto je prerano za akciju]
+
+Preskoči memove i šale. Fokusiraj se na vesti sa jasnim poslovnim implikacijama.
+Budi konkretan — imenuj sektore, kompanije i trendove kad god možeš.
 Piši ISKLJUČIVO na srpskom jeziku."""
         }]
     )
