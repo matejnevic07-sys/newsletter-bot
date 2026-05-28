@@ -17,9 +17,9 @@ TELEGRAM_CHAT_IDS = [
 ]
 
 SUBREDDITS = {
-    "🔬 Quantum Computing": ["QuantumComputing", "quantum"],
-    "🏢 Data Centers": ["datacenters", "sysadmin"],
-    "🤖 AI": ["artificial", "MachineLearning", "AINews"],
+    "🔬 Quantum Computing": ["QuantumComputing", "quantum", "QuantumInformation"],
+    "🏢 Data Centers": ["datacenters", "sysadmin", "aws", "CloudComputing", "devops"],
+    "🤖 AI": ["artificial", "MachineLearning", "AINews", "OpenAI", "LocalLLaMA", "singularity"],
 }
 
 HEADERS = {
@@ -108,7 +108,7 @@ Odgovori SAMO sa 3 broja, npr: 2, 7, 4"""
 
     insight = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=800,
+        max_tokens=1200,
         messages=[{
             "role": "user",
             "content": f"""Ti si iskusan investicioni analitičar. Čitaš Reddit da uhvatiš tržišne trendove pre ostalih.
@@ -119,17 +119,28 @@ Sve vesti danas iz oblasti {category}:
 Najvažnije vesti koje si odabrao:
 {selected_text}
 
-Napiši 3 konkretna investiciona zaključka. Za svaki:
+ZADATAK — uradi ova dva koraka:
+
+KORAK 1 — Napiši inicijalnu analizu za svaku vest:
 - Šta se desilo (1 rečenica)
-- Zašto je to važno za tržište i investitore (1-2 rečenice)
-- Konkretna preporuka: koji sektor/kompanija profitira ili gubi, šta pratiti
+- Zašto je bitno za tržište i investitore (1-2 rečenice)
+- Konkretna preporuka: koje akcije ($TICKER), ETF-ovi, sektori ili kompanije profitiraju ili gube
+
+KORAK 2 — Pre nego što pošalješ, challenguj sopstvenu analizu:
+- Da li je ovo zaista bitna vest ili samo šum?
+- Koji je kontraargument?
+- Da li preporuka i dalje stoji?
+Ako vest ne preživi ovaj test — zameni je slabijim signalom ili je izbaci.
+
+IZLAZ — Pošalji SAMO finalnu, revidiranu analizu. Bez labela koraka, bez "So what?", bez uvoda.
 
 Format:
 📌 [naslov vesti]
-[tvoja analiza i preporuka — 3-4 rečenice ukupno, direktno i konkretno]
+[analiza i preporuka — 3-4 rečenice, direktno i konkretno, uključi $TICKER simbole kad god možeš]
 
-Bez uvoda. Bez "So what?" labela. Piši kao analitičar koji zna šta radi.
-Imenuj konkretne kompanije, ETF-ove ili sektore kad god možeš.
+Ako danas nema vesti koje su stvarno bitne za investitore — napiši samo:
+"Nema značajnih vesti danas."
+
 Piši ISKLJUČIVO na srpskom jeziku."""
         }]
     )
