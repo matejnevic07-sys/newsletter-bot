@@ -18,8 +18,7 @@ TELEGRAM_CHAT_IDS = [
 
 SUBREDDITS = {
     "🔬 Quantum Computing": ["QuantumComputing", "quantum", "QuantumInformation"],
-    "🏢 Data Centers": ["datacenters", "sysadmin", "aws", "CloudComputing", "devops"],
-    "🤖 AI": ["artificial", "MachineLearning", "AINews", "OpenAI", "LocalLLaMA", "singularity"],
+    "🤖 AI": ["artificial", "MachineLearning", "AINews", "OpenAI", "ClaudeAI", "ChatGPT", "LocalLLaMA", "singularity"],
 }
 
 HEADERS = {
@@ -63,7 +62,7 @@ def fetch_top_posts(subreddit: str, limit: int = 10) -> list[dict]:
 
 def analyze_category(category: str, posts: list[dict]) -> tuple[str, list[dict]]:
     if not posts:
-        return "Danas nema novih postova.", []
+        return "", []
 
     posts_numbered = "\n".join([
         f"{i+1}. {p['title']}"
@@ -81,8 +80,10 @@ def analyze_category(category: str, posts: list[dict]) -> tuple[str, list[dict]]
 Postovi od danas:
 {posts_numbered}
 
-Koji su brojevi 3 najvažnija posta za investitore i poslovne ljude?
-Razmisli: koja vest ima najveći uticaj na tržište? Postoje li veze između postova?
+Koja su 3 najzanimljivija posta za nekoga ko aktivno prati AI i quantum svet?
+Prioritet imaju: izlazak novog modela ili alata, promene cena API-ja i pretplata,
+novi benchmark rezultati, open-source izdanja, veliki proboji i najave kompanija.
+Ignoriši meme, humor i lična pitanja korisnika.
 Odgovori SAMO sa 3 broja, npr: 2, 7, 4"""
         }]
     )
@@ -111,37 +112,30 @@ Odgovori SAMO sa 3 broja, npr: 2, 7, 4"""
         max_tokens=1200,
         messages=[{
             "role": "user",
-            "content": f"""Ti si iskusan investicioni analitičar. Čitaš Reddit da uhvatiš tržišne trendove pre ostalih.
+            "content": f"""Ti si tech novinar koji prati AI i quantum scenu iz dana u dan. Čitaš Reddit da uhvatiš novosti pre ostalih: nove modele, nove alate, promene cena, benchmark rezultate, open-source izdanja i velike najave.
 
 Sve vesti danas iz oblasti {category}:
 {all_text}
 
-Najvažnije vesti koje si odabrao:
+Najzanimljivije vesti koje si odabrao:
 {selected_text}
 
-ZADATAK — uradi ova dva koraka:
-
-KORAK 1 — Napiši inicijalnu analizu za svaku vest:
+ZADATAK — za svaku odabranu vest napiši:
 - Šta se desilo (1 rečenica)
-- Zašto je bitno za tržište i investitore (1-2 rečenice)
-- Konkretna preporuka: koje akcije ($TICKER), ETF-ovi, sektori ili kompanije profitiraju ili gube
+- Zašto je zanimljivo i šta znači za ljude koji koriste AI alate (2-3 rečenice)
+- Konkretno kad god možeš: ime modela/alata, cena, poređenje sa konkurencijom (npr. "novi model X je jeftiniji od GPT-a", "izašao Claude Fable 5 — jači od Opusa")
 
-KORAK 2 — Pre nego što pošalješ, challenguj sopstvenu analizu:
-- Da li je ovo zaista bitna vest ili samo šum?
-- Koji je kontraargument?
-- Da li preporuka i dalje stoji?
-Ako vest ne preživi ovaj test — zameni je slabijim signalom ili je izbaci.
+Pre nego što pošalješ, proveri: da li bi ovo neko ko prati AI stvarno hteo da pročita uz jutarnju kafu? Ako je vest dosadna ili nejasna — prepiši je da bude jasnija, ali je NE izbacuj.
 
-IZLAZ — Pošalji SAMO finalnu, revidiranu analizu. Bez labela koraka, bez "So what?", bez uvoda.
+IZLAZ — Pošalji SAMO finalni tekst. Bez labela koraka, bez uvoda.
 
 Format:
 📌 [naslov vesti]
-[analiza i preporuka — 3-4 rečenice, direktno i konkretno, uključi $TICKER simbole kad god možeš]
+[objašnjenje — 3-4 rečenice, direktno i konkretno]
 
-Ako danas nema vesti koje su stvarno bitne za investitore — napiši samo:
-"Nema značajnih vesti danas."
+VAŽNO: UVEK pošalji sve 3 vesti. Nikad ne odgovaraj da nema vesti — i u sporom danu izaberi ono najzanimljivije što postoji.
 
-Piši ISKLJUČIVO na srpskom jeziku."""
+Piši ISKLJUČIVO na srpskom jeziku, ekavicom (razumem/vreme/sledeći — nikad razumijem/vrijeme/sljedeći)."""
         }]
     )
 
@@ -162,23 +156,31 @@ def send_telegram(text: str):
 
 
 def build_and_send():
-    today = date.today().strftime("%B %d, %Y")
-    header = f"<b>🌅 Jutarnji pregled — {today}</b>\n<i>Tvoj dnevni tech digest</i>"
-    send_telegram(header)
-
+    sections = []
     for category, subreddits in SUBREDDITS.items():
         all_posts = []
         for sub in subreddits:
             all_posts.extend(fetch_top_posts(sub))
 
         analysis, selected_posts = analyze_category(category, all_posts)
+        if not analysis:
+            print(f"Skipping {category}: no posts fetched")
+            continue
 
         links = "\n".join([
             f'🔗 <a href="{p["url"]}">{p["title"][:70]}</a>'
             for p in selected_posts
         ])
 
-        section = f"\n<b>{category}</b>\n{'─' * 24}\n{analysis}\n\n{links}"
+        sections.append(f"\n<b>{category}</b>\n{'─' * 24}\n{analysis}\n\n{links}")
+
+    if not sections:
+        raise RuntimeError("Nijedan post nije fetchovan — Reddit RSS verovatno ne radi")
+
+    today = date.today().strftime("%B %d, %Y")
+    header = f"<b>🌅 Jutarnji pregled — {today}</b>\n<i>Tvoj dnevni AI & quantum digest</i>"
+    send_telegram(header)
+    for section in sections:
         send_telegram(section)
 
     send_telegram("─" * 24 + "\n<i>Vidimo se sutra! 👋</i>")

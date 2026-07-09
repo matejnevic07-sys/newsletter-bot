@@ -3,8 +3,10 @@
 ## Šta je ovaj projekat
 
 Reddit newsletter bot koji svako jutro u 9:00 šalje tech digest na Telegram.
-Tri kategorije: Quantum Computing, Data Centers, AI generalno.
+Dve kategorije: Quantum Computing i AI (fokus: novi modeli, alati, cene API-ja/pretplata, benchmarci, open-source izdanja).
 Dva primaoca: Matej i Stojan.
+
+**Pravilo: nikad prazan newsletter.** Prompt uvek bira top 3 vesti i u sporom danu; ako Reddit RSS potpuno padne, baca grešku (stiže error notifikacija) umesto praznog digesta.
 
 ## Stack
 
@@ -34,16 +36,17 @@ newsletter-bot/
 
 | Kategorija | Subredditi |
 |-----------|-----------|
-| 🔬 Quantum Computing | r/QuantumComputing, r/quantum |
-| 🏢 Data Centers | r/datacenters, r/sysadmin |
-| 🤖 AI | r/artificial, r/MachineLearning, r/AINews |
+| 🔬 Quantum Computing | r/QuantumComputing, r/quantum, r/QuantumInformation |
+| 🤖 AI | r/artificial, r/MachineLearning, r/AINews, r/OpenAI, r/ClaudeAI, r/ChatGPT, r/LocalLLaMA, r/singularity |
+
+Data Centers kategorija izbačena 2026-07-09 — fokus samo na quantum + AI.
 
 ## Kako radi — dvostepeni agent
 
 1. GitHub Actions pokrene `main.py` svako jutro u 9:00
 2. Fetchuje top RSS postove iz poslednjih 24h po subredditu (Chrome User-Agent, 1s sleep između requesta)
-3. **Korak 1 (interno):** Claude primi numerisanu listu svih postova → odabere 3 najvažnija za investitore (odgovara samo brojevima: `2, 7, 4`)
-4. **Korak 2 (output):** Claude dobije sve postove + odabrana 3 → piše čistu investment analizu bez labela, imenuje konkretne kompanije/ETF-ove/sektore
+3. **Korak 1 (interno):** Claude primi numerisanu listu svih postova → odabere 3 najzanimljivija (prioritet: novi modeli, alati, cene, benchmarci, open-source) i ignoriše meme/humor (odgovara samo brojevima: `2, 7, 4`)
+4. **Korak 2 (output):** Claude dobije sve postove + odabrana 3 → piše digest na ekavici: šta se desilo, zašto je zanimljivo, konkretna imena modela/alata i cene. UVEK šalje 3 vesti, nikad "nema vesti"
 5. Šalje na Telegram sa linkovima, sve na srpskom
 
 **Zašto dvostepeni:** Korisnik ne želi da vidi "So what?" labele — Claude treba da sam preispita vesti i dostavi samo finalni zaključak.
